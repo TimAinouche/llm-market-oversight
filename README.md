@@ -6,10 +6,17 @@ Point de départ : Calvano et al. (AER, 2020) sur la collusion tacite d'algorith
 
 ## Avancement
 - [x] Carnet d'ordres : ordres limites / au marché, annulations, priorité prix-temps
-- [ ] Simulation avec agents de référence (zero-intelligence, market maker)
+- [x] Simulation avec agents de référence (zero-intelligence, market maker)
 - [ ] Agents LLM
 - [ ] Expérience : autonomie (communication oui / non)
 - [ ] Moniteur
+
+## Lancer l'expérience de référence
+```bash
+python3 -m experiments.run_baseline
+```
+
+![Marché de référence](figures/baseline.png)
 
 ## Lancer les tests
 ```bash
