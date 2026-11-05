@@ -5,3 +5,4 @@ __pycache__/
 results/
 .env
 .DS_Store
+figures/mock_*

@@ -1,8 +1,8 @@
 """
-Boucle de simulation : à chaque pas de temps,
-1. le prix fondamental bouge (marche aléatoire),
-2. chaque agent agit, dans un ordre aléatoire,
-3. on enregistre l'état du marché.
+Simulation loop. At each time step:
+1. the fundamental price moves (random walk),
+2. every agent acts, in a random order,
+3. the market state is recorded.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from market.orderbook import OrderBook
 
 
 def run_simulation(agents, n_steps=500, start_price=10_000,
-                   fundamental_vol=5, seed=0):
+                   fundamental_vol=5, seed=0, on_step=None):
     rng = random.Random(seed)
     book = OrderBook()
     fundamental = start_price
@@ -29,7 +29,7 @@ def run_simulation(agents, n_steps=500, start_price=10_000,
         for agent in order:
             agent.act(book, t, fundamental)
 
-        # Mise à jour des stocks / cash des agents concernés par les trades du pas
+        # Update inventory / cash of the agents involved in this step's trades
         new_trades = book.trades[n_trades_before:]
         for trade in new_trades:
             for aid in {trade.buyer, trade.seller}:
@@ -47,18 +47,21 @@ def run_simulation(agents, n_steps=500, start_price=10_000,
             "volume": sum(tr.qty for tr in new_trades),
             "last_price": book.trades[-1].price if book.trades else None,
         })
+        if on_step is not None:
+            on_step(t, n_steps)
 
     return history, book
 
 
 def summarize(history, agents):
-    """Métriques de qualité de marché + profit de chaque agent."""
+    """Market-quality metrics + profit of each agent."""
     valid = [h for h in history if h["mid"] is not None]
     final_mark = history[-1]["fundamental"]
     return {
-        "spread_moyen": sum(h["spread"] for h in valid) / len(valid),
-        "ecart_moyen_au_fondamental": sum(abs(h["mid"] - h["fundamental"]) for h in valid) / len(valid),
-        "volume_total": sum(h["volume"] for h in history),
-        "pas_sans_cotation": len(history) - len(valid),
+        "mean_spread": sum(h["spread"] for h in valid) / len(valid),
+        "mean_abs_deviation_from_fundamental":
+            sum(abs(h["mid"] - h["fundamental"]) for h in valid) / len(valid),
+        "total_volume": sum(h["volume"] for h in history),
+        "steps_without_quotes": len(history) - len(valid),
         "pnl": {a.agent_id: round(a.pnl(final_mark)) for a in agents},
     }

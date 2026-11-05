@@ -1,11 +1,11 @@
 """
-Carnet d'ordres (limit order book) avec appariement par priorité prix puis temps.
+Limit order book with price-time priority matching.
 
-Conventions :
-- Les prix sont des entiers en "ticks" (ex. 10050 = 100,50 €) pour éviter
-  les erreurs d'arrondi des floats.
-- Un trade s'exécute toujours au prix de l'ordre qui était déjà dans le carnet
-  (l'ordre "passif"), comme sur un vrai marché.
+Conventions:
+- Prices are integers in "ticks" (e.g. 10050 = EUR 100.50) to avoid
+  floating-point rounding errors.
+- A trade always executes at the price of the order that was already resting
+  in the book (the "passive" order), as on a real exchange.
 """
 
 from __future__ import annotations
@@ -23,9 +23,9 @@ SELL = "sell"
 class Order:
     order_id: int
     agent_id: str
-    side: str              # "buy" ou "sell"
-    price: Optional[int]   # None pour un ordre au marché
-    qty: int               # quantité restante
+    side: str              # "buy" or "sell"
+    price: Optional[int]   # None for a market order
+    qty: int               # remaining quantity
     timestamp: int
     active: bool = True
 
@@ -43,16 +43,16 @@ class Trade:
 
 @dataclass
 class OrderBook:
-    # prix -> file d'attente des ordres à ce prix (ordre d'arrivée = priorité temps)
+    # price -> queue of orders at that price (arrival order = time priority)
     bids: dict[int, deque] = field(default_factory=dict)
     asks: dict[int, deque] = field(default_factory=dict)
-    orders: dict[int, Order] = field(default_factory=dict)  # index pour les annulations
+    orders: dict[int, Order] = field(default_factory=dict)  # index of resting orders, for cancels
     trades: list[Trade] = field(default_factory=list)
     _ids: count = field(default_factory=lambda: count(1))
     _clock: count = field(default_factory=lambda: count(0))
 
     # ------------------------------------------------------------------ #
-    # Lecture du carnet
+    # Reading the book
     # ------------------------------------------------------------------ #
     def best_bid(self) -> Optional[int]:
         return max(self.bids) if self.bids else None
@@ -69,14 +69,14 @@ class OrderBook:
         return None if bb is None or ba is None else (bb + ba) / 2
 
     def depth(self, levels: int = 5) -> dict:
-        """Quantité disponible sur les `levels` meilleurs niveaux de chaque côté."""
+        """Quantity available on the `levels` best price levels of each side."""
         def side_depth(book: dict, reverse: bool):
             prices = sorted(book, reverse=reverse)[:levels]
             return [(p, sum(o.qty for o in book[p])) for p in prices]
         return {"bids": side_depth(self.bids, True), "asks": side_depth(self.asks, False)}
 
     def snapshot(self, levels: int = 5) -> dict:
-        """État du marché sous forme de dict (sera envoyé aux agents LLM en JSON)."""
+        """Market state as a dict (sent to the LLM agents as JSON)."""
         return {
             "best_bid": self.best_bid(),
             "best_ask": self.best_ask(),
@@ -88,12 +88,16 @@ class OrderBook:
             ],
         }
 
+    def open_orders_of(self, agent_id: str) -> list[Order]:
+        """Orders of one agent still resting in the book."""
+        return [o for o in self.orders.values() if o.agent_id == agent_id and o.active]
+
     # ------------------------------------------------------------------ #
-    # Envoi d'ordres
+    # Order entry
     # ------------------------------------------------------------------ #
     def submit_limit(self, agent_id: str, side: str, price: int, qty: int):
-        """Ordre limite : s'exécute contre le carnet si possible, le reste
-        est placé dans le carnet. Renvoie (order_id, liste des trades)."""
+        """Limit order: executes against the book where possible, the remainder
+        rests in the book. Returns (order_id, list of trades)."""
         self._check(side, qty)
         order = Order(next(self._ids), agent_id, side, price, qty, next(self._clock))
         trades = self._match(order)
@@ -106,8 +110,8 @@ class OrderBook:
         return order.order_id, trades
 
     def submit_market(self, agent_id: str, side: str, qty: int):
-        """Ordre au marché : s'exécute au meilleur prix disponible.
-        La partie non exécutée (carnet vide) est abandonnée."""
+        """Market order: executes at the best available prices.
+        Any unfilled remainder (empty book) is dropped."""
         self._check(side, qty)
         order = Order(next(self._ids), agent_id, side, None, qty, next(self._clock))
         trades = self._match(order)
@@ -115,7 +119,7 @@ class OrderBook:
         return order.order_id, trades
 
     def cancel(self, order_id: int) -> bool:
-        """Annule un ordre encore dans le carnet. Renvoie False s'il n'existe plus."""
+        """Cancels an order still in the book. Returns False if it no longer exists."""
         order = self.orders.pop(order_id, None)
         if order is None or not order.active:
             return False
@@ -128,7 +132,7 @@ class OrderBook:
         return True
 
     # ------------------------------------------------------------------ #
-    # Moteur d'appariement
+    # Matching engine
     # ------------------------------------------------------------------ #
     def _match(self, order: Order) -> list[Trade]:
         trades = []
@@ -136,7 +140,7 @@ class OrderBook:
 
         while order.qty > 0 and opposite:
             best = min(opposite) if order.side == BUY else max(opposite)
-            # Un ordre limite ne s'exécute que si son prix croise le meilleur prix opposé
+            # A limit order only executes if its price crosses the best opposite price
             if order.price is not None:
                 if order.side == BUY and order.price < best:
                     break
@@ -144,7 +148,7 @@ class OrderBook:
                     break
 
             queue = opposite[best]
-            resting = queue[0]                     # priorité temps : le plus ancien
+            resting = queue[0]                     # time priority: oldest first
             qty = min(order.qty, resting.qty)
             buy, sell = (order, resting) if order.side == BUY else (resting, order)
             trade = Trade(buy.order_id, sell.order_id, buy.agent_id, sell.agent_id,
@@ -165,6 +169,6 @@ class OrderBook:
     @staticmethod
     def _check(side: str, qty: int) -> None:
         if side not in (BUY, SELL):
-            raise ValueError(f"side doit être 'buy' ou 'sell', reçu {side!r}")
+            raise ValueError(f"side must be 'buy' or 'sell', got {side!r}")
         if qty <= 0:
-            raise ValueError("la quantité doit être positive")
+            raise ValueError("quantity must be positive")

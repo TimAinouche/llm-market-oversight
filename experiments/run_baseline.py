@@ -1,7 +1,7 @@
 """
-Expérience de référence : un market maker + 5 traders "zero-intelligence".
+Baseline experiment: one market maker + 5 zero-intelligence traders.
 
-Lancer depuis la racine du projet :
+Run from the project root:
     python3 -m experiments.run_baseline
 """
 
@@ -23,31 +23,35 @@ def build_agents(seed):
     return agents
 
 
+def plot_market(history, title, path):
+    t = [h["t"] for h in history]
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
+    ax1.plot(t, [h["fundamental"] / 100 for h in history], label="Fundamental price", color="#888888")
+    ax1.plot(t, [h["mid"] / 100 if h["mid"] else None for h in history], label="Mid price", color="#2563eb")
+    ax1.set_ylabel("Price (EUR)")
+    ax1.legend()
+    ax2.plot(t, [h["spread"] / 100 if h["spread"] else None for h in history], color="#dc2626")
+    ax2.set_ylabel("Spread (EUR)")
+    ax2.set_xlabel("Time step")
+    fig.suptitle(title)
+    fig.tight_layout()
+    Path(path).parent.mkdir(exist_ok=True)
+    fig.savefig(path, dpi=120)
+    plt.close(fig)
+
+
 def main():
     agents = build_agents(SEED)
     history, _ = run_simulation(agents, n_steps=500, seed=SEED)
     stats = summarize(history, agents)
 
-    print("=== Marché de référence (sans LLM) ===")
+    print("=== Baseline market (no LLM) ===")
     for k, v in stats.items():
         print(f"{k}: {v}")
 
-    t = [h["t"] for h in history]
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
-    ax1.plot(t, [h["fundamental"] / 100 for h in history], label="Prix fondamental", color="#888888")
-    ax1.plot(t, [h["mid"] / 100 if h["mid"] else None for h in history], label="Prix milieu (mid)", color="#2563eb")
-    ax1.set_ylabel("Prix (€)")
-    ax1.legend()
-    ax2.plot(t, [h["spread"] / 100 if h["spread"] else None for h in history], color="#dc2626")
-    ax2.set_ylabel("Spread (€)")
-    ax2.set_xlabel("Pas de temps")
-    fig.suptitle("Marché de référence : 1 market maker + 5 traders zero-intelligence")
-    fig.tight_layout()
-
-    out = Path("figures")
-    out.mkdir(exist_ok=True)
-    fig.savefig(out / "baseline.png", dpi=120)
-    print(f"Graphique enregistré dans {out / 'baseline.png'}")
+    path = "figures/baseline.png"
+    plot_market(history, "Baseline market: 1 market maker + 5 zero-intelligence traders", path)
+    print(f"Figure saved to {path}")
 
 
 if __name__ == "__main__":

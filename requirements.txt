@@ -1,2 +1,4 @@
 pytest
 matplotlib
+google-genai
+python-dotenv

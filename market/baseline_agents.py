@@ -1,13 +1,13 @@
 """
-Agents de référence (non-LLM).
+Baseline (non-LLM) agents.
 
-Ils servent de point de comparaison : si un comportement apparaît avec des
-agents LLM mais pas avec ces agents simples, on peut l'attribuer aux LLM.
+They are the control group: if a behaviour appears with LLM agents but not
+with these simple agents, it can be attributed to the LLMs.
 
-- ZeroIntelligenceTrader : inspiré de Gode & Sunder (1993). Envoie des ordres
-  aléatoires autour d'une estimation bruitée du prix fondamental.
-- MarketMaker : affiche en permanence un prix d'achat et un prix de vente
-  autour du fondamental, et décale ses prix selon son stock (inventaire).
+- ZeroIntelligenceTrader: inspired by Gode & Sunder (1993). Sends random
+  orders around a noisy estimate of the fundamental price.
+- MarketMaker: always quotes a bid and an ask around the fundamental, and
+  skews its prices according to its inventory.
 """
 
 from __future__ import annotations
@@ -21,15 +21,15 @@ class Agent:
     def __init__(self, agent_id: str, rng: random.Random):
         self.agent_id = agent_id
         self.rng = rng
-        self.inventory = 0      # nombre de titres détenus (négatif = vendeur à découvert)
-        self.cash = 0           # en ticks
-        self.open_orders: list[tuple[int, int]] = []  # (order_id, pas de temps d'envoi)
+        self.inventory = 0      # shares held (negative = short)
+        self.cash = 0           # in ticks
+        self.open_orders: list[tuple[int, int]] = []  # (order_id, step sent)
 
     def act(self, book: OrderBook, t: int, fundamental: int) -> None:
         raise NotImplementedError
 
     def on_trade(self, trade) -> None:
-        """Met à jour stock et cash quand un de nos ordres est exécuté."""
+        """Updates inventory and cash when one of our orders is filled."""
         if trade.buyer == self.agent_id:
             self.inventory += trade.qty
             self.cash -= trade.qty * trade.price
@@ -38,7 +38,7 @@ class Agent:
             self.cash += trade.qty * trade.price
 
     def pnl(self, mark_price: float) -> float:
-        """Profit : cash + valeur du stock au prix de référence."""
+        """Profit: cash + inventory marked at the reference price."""
         return self.cash + self.inventory * mark_price
 
 
@@ -46,13 +46,13 @@ class ZeroIntelligenceTrader(Agent):
     def __init__(self, agent_id, rng, noise=30, max_qty=5,
                  p_market=0.1, order_lifetime=10):
         super().__init__(agent_id, rng)
-        self.noise = noise                  # bruit sur l'estimation du fondamental (ticks)
+        self.noise = noise                  # noise on the fundamental estimate (ticks)
         self.max_qty = max_qty
-        self.p_market = p_market            # probabilité d'envoyer un ordre au marché
+        self.p_market = p_market            # probability of sending a market order
         self.order_lifetime = order_lifetime
 
     def act(self, book, t, fundamental):
-        # 1. Annuler les ordres trop anciens
+        # 1. Cancel stale orders
         still_open = []
         for oid, sent_at in self.open_orders:
             if t - sent_at >= self.order_lifetime:
@@ -61,7 +61,7 @@ class ZeroIntelligenceTrader(Agent):
                 still_open.append((oid, sent_at))
         self.open_orders = still_open
 
-        # 2. Envoyer un nouvel ordre aléatoire
+        # 2. Send a new random order
         side = self.rng.choice([BUY, SELL])
         qty = self.rng.randint(1, self.max_qty)
         if self.rng.random() < self.p_market:
@@ -80,16 +80,16 @@ class MarketMaker(Agent):
         super().__init__(agent_id, rng)
         self.half_spread = half_spread
         self.qty = qty
-        self.inventory_skew = inventory_skew  # décalage de prix par titre en stock
+        self.inventory_skew = inventory_skew  # price shift per share held
         self.max_inventory = max_inventory
 
     def act(self, book, t, fundamental):
-        # Retire ses anciennes cotations et en affiche de nouvelles
+        # Pull the old quotes and post new ones
         for oid, _ in self.open_orders:
             book.cancel(oid)
         self.open_orders = []
 
-        # Trop de stock -> baisse ses prix pour vendre, et inversement
+        # Too much inventory -> lower prices to sell, and vice versa
         center = fundamental - self.inventory_skew * self.inventory
         if self.inventory < self.max_inventory:
             oid, _ = book.submit_limit(self.agent_id, BUY, center - self.half_spread, self.qty)
