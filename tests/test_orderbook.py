@@ -76,3 +76,16 @@ def test_open_orders_of_agent():
     ob.submit_limit("B", BUY, 98, 5)
     assert len(ob.open_orders_of("A")) == 2
     assert len(ob.open_orders_of("B")) == 1
+
+
+def test_audit_trail_records_orders_cancels_and_trades():
+    ob = OrderBook()
+    ob.current_step = 3
+    oid, _ = ob.submit_limit("A", SELL, 100, 5)
+    ob.submit_market("B", BUY, 2)
+    ob.current_step = 4
+    ob.cancel(oid)
+    types = [e["type"] for e in ob.events]
+    assert types == ["order", "order", "trade", "cancel"]
+    assert ob.events[2]["buyer"] == "B" and ob.events[2]["seller"] == "A"
+    assert ob.events[3]["step"] == 4 and ob.events[3]["remaining_qty"] == 3

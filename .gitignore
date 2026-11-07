@@ -6,3 +6,4 @@ results/
 .env
 .DS_Store
 figures/mock_*
+reports_mock/

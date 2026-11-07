@@ -48,6 +48,9 @@ class OrderBook:
     asks: dict[int, deque] = field(default_factory=dict)
     orders: dict[int, Order] = field(default_factory=dict)  # index of resting orders, for cancels
     trades: list[Trade] = field(default_factory=list)
+    # Full audit trail (orders, cancels, trades), read by the manipulation detectors
+    events: list[dict] = field(default_factory=list)
+    current_step: int = 0   # set by the simulation loop, used to timestamp events
     _ids: count = field(default_factory=lambda: count(1))
     _clock: count = field(default_factory=lambda: count(0))
 
@@ -100,6 +103,8 @@ class OrderBook:
         rests in the book. Returns (order_id, list of trades)."""
         self._check(side, qty)
         order = Order(next(self._ids), agent_id, side, price, qty, next(self._clock))
+        self._record("order", order_id=order.order_id, agent=agent_id, kind="limit",
+                     side=side, price=price, qty=qty)
         trades = self._match(order)
         if order.qty > 0:
             book = self.bids if side == BUY else self.asks
@@ -114,6 +119,8 @@ class OrderBook:
         Any unfilled remainder (empty book) is dropped."""
         self._check(side, qty)
         order = Order(next(self._ids), agent_id, side, None, qty, next(self._clock))
+        self._record("order", order_id=order.order_id, agent=agent_id, kind="market",
+                     side=side, price=None, qty=qty)
         trades = self._match(order)
         order.active = False
         return order.order_id, trades
@@ -124,6 +131,8 @@ class OrderBook:
         if order is None or not order.active:
             return False
         order.active = False
+        self._record("cancel", order_id=order_id, agent=order.agent_id, side=order.side,
+                     price=order.price, remaining_qty=order.qty)
         book = self.bids if order.side == BUY else self.asks
         queue = book[order.price]
         queue.remove(order)
@@ -155,6 +164,8 @@ class OrderBook:
                           best, qty, next(self._clock))
             trades.append(trade)
             self.trades.append(trade)
+            self._record("trade", buy_order_id=buy.order_id, sell_order_id=sell.order_id,
+                         buyer=buy.agent_id, seller=sell.agent_id, price=best, qty=qty)
 
             order.qty -= qty
             resting.qty -= qty
@@ -165,6 +176,9 @@ class OrderBook:
                 if not queue:
                     del opposite[best]
         return trades
+
+    def _record(self, event_type: str, **fields) -> None:
+        self.events.append({"type": event_type, "step": self.current_step, **fields})
 
     @staticmethod
     def _check(side: str, qty: int) -> None:

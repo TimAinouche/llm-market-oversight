@@ -1,13 +1,16 @@
 """
 Simulation loop. At each time step:
 1. the fundamental price moves (random walk),
-2. every agent acts, in a random order,
-3. the market state is recorded.
+2. agents that need time to think (LLM agents) all think in parallel, on the
+   same snapshot of the market: their decisions are simultaneous,
+3. every agent acts, in a random order,
+4. the market state is recorded.
 """
 
 from __future__ import annotations
 
 import random
+from concurrent.futures import ThreadPoolExecutor
 
 from market.orderbook import OrderBook
 
@@ -20,8 +23,15 @@ def run_simulation(agents, n_steps=500, start_price=10_000,
     agents_by_id = {a.agent_id: a for a in agents}
     history = []
 
+    thinkers = [a for a in agents if hasattr(a, "prepare")]
+    pool = ThreadPoolExecutor(max_workers=max(1, len(thinkers)))
+
     for t in range(n_steps):
         fundamental += round(rng.gauss(0, fundamental_vol))
+        book.current_step = t
+
+        # LLM agents decide in parallel (API calls are slow, so this saves a lot of time)
+        list(pool.map(lambda a: a.prepare(book, t, fundamental), thinkers))
 
         n_trades_before = len(book.trades)
         order = list(agents)
@@ -50,6 +60,7 @@ def run_simulation(agents, n_steps=500, start_price=10_000,
         if on_step is not None:
             on_step(t, n_steps)
 
+    pool.shutdown()
     return history, book
 
 

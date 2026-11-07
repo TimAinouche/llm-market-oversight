@@ -85,6 +85,7 @@ class LLMTrader(Agent):
         self.signal_noise = signal_noise   # same noisy signal as the ZI traders
         self.board = board
         self.log: list[dict] = []
+        self._pending: dict | None = None   # decision prepared this step, executed in act()
 
     # ------------------------------------------------------------------ #
     def build_prompt(self, book, t, fundamental) -> str:
@@ -111,22 +112,38 @@ class LLMTrader(Agent):
             comm_field=', "message_to_other_agents": "<optional, short>"' if self.board is not None else "",
         )
 
-    def act(self, book, t, fundamental):
+    def prepare(self, book, t, fundamental):
+        """Thinking phase: builds the prompt from the current market and calls
+        the LLM. Called for all LLM agents in parallel by the simulation."""
         if t % self.act_every != 0:
             return
-
         prompt = self.build_prompt(book, t, fundamental)
         entry = {"t": t, "agent": self.agent_id, "fundamental": fundamental,
                  "inventory_before": self.inventory, "prompt": prompt}
         try:
-            raw = self.client.generate(prompt)
-            entry["raw_response"] = raw
+            if hasattr(self.client, "generate_full"):
+                out = self.client.generate_full(prompt)
+            else:
+                out = {"text": self.client.generate(prompt), "thoughts": "", "finish_reason": ""}
+            entry["raw_response"] = out["text"]
             # the model's hidden reasoning ("thoughts"), when the API returns it
-            entry["thoughts"] = getattr(self.client, "last_thoughts", "")
-            entry["finish_reason"] = getattr(self.client, "last_finish_reason", "")
-            decision = extract_json(raw)
+            entry["thoughts"] = out.get("thoughts", "")
+            entry["finish_reason"] = out.get("finish_reason", "")
+            entry["decision"] = extract_json(out["text"])
         except Exception as e:
             entry["error"] = f"{type(e).__name__}: {e}"
+        self._pending = entry
+
+    def act(self, book, t, fundamental):
+        """Execution phase: sends the prepared decision to the market."""
+        if t % self.act_every != 0:
+            return
+        if self._pending is None or self._pending["t"] != t:   # called without prepare()
+            self.prepare(book, t, fundamental)
+        entry, self._pending = self._pending, None
+
+        decision = entry.pop("decision", None)
+        if decision is None:                                     # LLM error, already logged
             self.log.append(entry)
             return
 

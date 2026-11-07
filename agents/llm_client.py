@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import threading
 import time
 
 DEFAULT_MODEL = "gemma-4-31b-it"
@@ -25,8 +26,8 @@ class GeminiClient:
     """Gemma 4 is a "thinking" model: it writes hidden reasoning (thoughts)
     before its answer. The thoughts count towards the output token limit, so
     the limit must be generous, otherwise the answer comes back empty.
-    The thoughts are kept (self.last_thoughts): they are exactly what the
-    monitor will read on day 5."""
+    The thoughts are kept: they are exactly what the monitor will read.
+    Thread-safe: several agents can call it at the same time."""
 
     def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.7,
                  max_retries: int = 4, timeout_s: int = 180,
@@ -56,9 +57,8 @@ class GeminiClient:
         self.keep_thoughts = keep_thoughts
         self.verbose = verbose
         self._last_call = 0.0
+        self._lock = threading.Lock()
         self.n_calls = 0
-        self.last_thoughts = ""
-        self.last_finish_reason = ""
 
     def _config(self):
         from google.genai import types
@@ -69,12 +69,22 @@ class GeminiClient:
         return types.GenerateContentConfig(**kwargs)
 
     def generate(self, prompt: str) -> str:
-        delay = 10
-        for attempt in range(self.max_retries):
+        return self.generate_full(prompt)["text"]
+
+    def _wait_turn(self) -> None:
+        """Spaces calls by min_interval, even when several threads call at once."""
+        with self._lock:
             wait = self.min_interval - (time.time() - self._last_call)
             if wait > 0:
                 time.sleep(wait)
-            self._last_call = start = time.time()
+            self._last_call = time.time()
+
+    def generate_full(self, prompt: str) -> dict:
+        """Returns {"text": answer, "thoughts": hidden reasoning, "finish_reason": ...}."""
+        delay = 10
+        for attempt in range(self.max_retries):
+            self._wait_turn()
+            start = time.time()
             try:
                 response = self.client.models.generate_content(
                     model=self.model, contents=prompt, config=self._config(),
@@ -96,7 +106,9 @@ class GeminiClient:
                 delay = min(delay * 2, 60)
                 continue
 
-            self.n_calls += 1
+            with self._lock:
+                self.n_calls += 1
+                n = self.n_calls
             answer, thoughts, finish = "", "", ""
             if response.candidates:
                 cand = response.candidates[0]
@@ -108,13 +120,12 @@ class GeminiClient:
                         thoughts += part.text
                     else:
                         answer += part.text
-            self.last_thoughts, self.last_finish_reason = thoughts, finish
             if self.verbose:
                 note = "" if finish in ("STOP", "") else f", finish={finish}"
                 empty = ", EMPTY ANSWER" if not answer.strip() else ""
-                print(f"    LLM call {self.n_calls} ({time.time() - start:.1f}s{note}{empty})")
-            return answer
-        return ""
+                print(f"    LLM call {n} ({time.time() - start:.1f}s{note}{empty})")
+            return {"text": answer, "thoughts": thoughts, "finish_reason": finish}
+        return {"text": "", "thoughts": "", "finish_reason": ""}
 
 
 class MockClient:
@@ -124,17 +135,22 @@ class MockClient:
     def __init__(self, seed: int = 0):
         self.rng = random.Random(seed)
         self.n_calls = 0
+        self._lock = threading.Lock()
 
     def generate(self, prompt: str) -> str:
-        self.n_calls += 1
+        with self._lock:
+            self.n_calls += 1
         state = json.loads(prompt.split("<state>")[1].split("</state>")[0])
         ref = state["market"]["mid"] or state["private_fair_value_estimate"]
         ref = int(ref)
         actions = [
             {"type": "cancel", "order_id": o["order_id"]} for o in state["your_open_orders"]
         ]
-        actions.append({"type": "limit", "side": "buy", "price": ref - self.rng.randint(2, 15), "qty": self.rng.randint(1, 5)})
-        actions.append({"type": "limit", "side": "sell", "price": ref + self.rng.randint(2, 15), "qty": self.rng.randint(1, 5)})
+        with self._lock:
+            b, a, qb, qa = (self.rng.randint(2, 15), self.rng.randint(2, 15),
+                            self.rng.randint(1, 5), self.rng.randint(1, 5))
+        actions.append({"type": "limit", "side": "buy", "price": ref - b, "qty": qb})
+        actions.append({"type": "limit", "side": "sell", "price": ref + a, "qty": qa})
         reply = {
             "reasoning": "Mock agent: quoting around the mid price.",
             "actions": actions,
