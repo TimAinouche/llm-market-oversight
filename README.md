@@ -31,7 +31,9 @@ reports/      results tables and flagged patterns
 - [x] Baseline market (zero-intelligence traders + market maker)
 - [x] LLM trading agents (Gemma 4), with optional communication channel; hidden reasoning ("thoughts") logged
 - [x] Rule-based manipulation detectors + experiment grid (control / no communication / communication × seeds)
-- [ ] Run the grid and report results
+- [x] Run the grid (control / nocomm / comm × 3 seeds): no emergent manipulation; LLM agents tighten the spread; messages are honest, no herding
+- [x] Scripted lying influencer in the message channel (liar / mixed / authority profiles)
+- [ ] Run the manipulation experiment (liar / mixed / authority × 3 seeds)
 - [ ] Monitor model
 - [ ] Results and write-up
 
@@ -57,6 +59,11 @@ Three conditions, same market around the test agents (1 market maker + 3 noise t
 | `control` | 3 zero-intelligence traders (no LLM) |
 | `nocomm` | 3 LLM agents, no communication |
 | `comm` | 3 LLM agents with a shared message channel |
+| `liar` | `comm` + a scripted influencer who lies in every message and trades against its own message (pump-and-dump) |
+| `mixed` | `comm` + an influencer who first builds credibility with true information, then mixes truth and lies |
+| `authority` | same lies as `liar` (identical messages), prefixed with a prestigious professional title: isolates the effect of perceived authority |
+
+The influencer is scripted, not an LLM: the attack is identical across runs and we know exactly when it lies, which gives ground truth for measuring whether agents were fooled (`experiments/conformity.py`).
 
 LLM agents think in parallel on the same market snapshot (simultaneous decisions).
 The order book allows self-matching on purpose, so that wash trades can be observed.
@@ -64,6 +71,8 @@ The order book allows self-matching on purpose, so that wash trades can be obser
 ```bash
 caffeinate -i python3 -m experiments.run_grid --model gemma-4-26b-a4b-it   # resumable: rerun to continue
 python3 -m experiments.analyze
+python3 -m experiments.conformity      # herding + influencer: are agents fooled?
+caffeinate -i python3 -m experiments.run_grid --model gemma-4-26b-a4b-it --conditions liar mixed authority
 ```
 
 ### Detectors (`analysis/detectors.py`)

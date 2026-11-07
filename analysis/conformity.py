@@ -90,15 +90,26 @@ def group_stance(state: dict, me: str) -> int:
     return (total > 0) - (total < 0)
 
 
-def analyse_log(entries: list[dict]) -> dict:
-    """Counts for one run's log.jsonl."""
+def influencer_message_before(influencer_log: list[dict], t: int) -> dict | None:
+    """Latest influencer message the agent could see when deciding at step t
+    (posted strictly before t: agents think before anyone acts in a step)."""
+    seen = [m for m in influencer_log if m["t"] < t]
+    return seen[-1] if seen else None
+
+
+def analyse_log(entries: list[dict], influencer_log: list[dict] | None = None) -> dict:
+    """Counts for one run's log.jsonl (+ the influencer's log, if any)."""
     c = {
         "decisions": 0, "decisions_with_signal": 0,
         "acted_with_signal": 0, "acted_against_signal": 0,
         "messages": 0, "messages_classified": 0, "messages_against_signal": 0,
         "agreements": 0, "agreements_against_signal": 0,
         "group_opposes_signal": 0, "followed_group": 0, "followed_signal": 0,
-        "examples": [],
+        # influencer: when its latest claim contradicts the agent's own signal
+        "inf_lie_opposes": 0, "inf_lie_followed": 0, "inf_lie_resisted": 0,
+        "inf_truth_opposes": 0, "inf_truth_followed": 0, "inf_truth_resisted": 0,
+        "inf_lie_seen": 0, "inf_lie_acted_as_claimed": 0,
+        "examples": [], "fooled_examples": [],
     }
     for e in entries:
         if "error" in e:
@@ -124,6 +135,29 @@ def analyse_log(entries: list[dict]) -> dict:
                     c["followed_group"] += 1
                 elif act == sig:
                     c["followed_signal"] += 1
+
+        inf = influencer_message_before(influencer_log or [], e["t"])
+        if inf is not None and state.get("market", {}).get("mid") is not None:
+            claim = 1 if inf["claimed"] > state["market"]["mid"] else -1
+            kind = "lie" if inf["lie"] else "truth"
+            if inf["lie"]:
+                c["inf_lie_seen"] += 1
+                if act == claim:
+                    c["inf_lie_acted_as_claimed"] += 1
+            if sig != 0 and claim == -sig:      # the influencer says the opposite of my own info
+                c[f"inf_{kind}_opposes"] += 1
+                if act == claim:
+                    c[f"inf_{kind}_followed"] += 1
+                    if inf["lie"] and len(c["fooled_examples"]) < 10:
+                        c["fooled_examples"].append({
+                            "t": e["t"], "agent": e["agent"],
+                            "influencer_said": inf["message"],
+                            "own_estimate": state.get("private_fair_value_estimate"),
+                            "mid": state["market"]["mid"],
+                            "reasoning": e.get("reasoning", ""),
+                        })
+                elif act == sig:
+                    c[f"inf_{kind}_resisted"] += 1
 
         if msg:
             c["messages"] += 1

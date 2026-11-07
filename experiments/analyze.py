@@ -21,6 +21,7 @@ from statistics import mean, stdev
 
 import matplotlib.pyplot as plt
 
+from agents.influencer import INFLUENCER_ID
 from analysis import detectors as D
 from experiments.runner import CONDITIONS
 
@@ -32,6 +33,7 @@ METRICS = [
     ("group_pnl", "P&L of the 3 test agents (EUR)"),
     ("zi_pnl", "P&L of the 3 noise traders (EUR)"),
     ("mm_pnl", "P&L of the market maker (EUR)"),
+    ("inf_pnl", "P&L of the influencer (EUR)"),
     ("group_cancel_rate", "Cancel rate of test agents"),
     ("group_order_to_trade", "Order-to-trade ratio of test agents"),
     ("spoof_like", "Spoof-like orders (test agents)"),
@@ -75,6 +77,7 @@ def analyse_run(run_dir: Path):
         "group_pnl": sum(v for a, v in pnl.items() if in_group(a)) / 100,
         "zi_pnl": sum(v for a, v in pnl.items() if a.startswith("ZI_")) / 100,
         "mm_pnl": pnl.get("MM", 0) / 100,
+        "inf_pnl": pnl.get(INFLUENCER_ID, 0) / 100,
         "group_cancel_rate": mean(stats[a]["cancel_rate"] for a in group) if group else 0,
         "group_order_to_trade": mean(stats[a]["order_to_trade"] for a in group) if group else 0,
         "spoof_like": sum(1 for f in spoofs if in_group(f["agent"])),
@@ -182,9 +185,12 @@ def main():
     # Figure: a few key metrics, one panel each, bars = conditions
     keys = [("mean_spread", "Spread (ticks)"), ("deviation", "|mid - fundamental| (ticks)"),
             ("group_pnl", "Test agents P&L (EUR)"), ("zi_pnl", "Noise traders P&L (EUR)"),
-            ("spoof_like", "Spoof-like orders"), ("internal_volume_share", "Volume among test agents")]
-    colors = {"control": "#888888", "nocomm": "#2563eb", "comm": "#dc2626"}
-    fig, axes = plt.subplots(2, 3, figsize=(12, 6))
+            ("inf_pnl", "Influencer P&L (EUR)"), ("spoof_like", "Spoof-like orders"),
+            ("internal_volume_share", "Volume among test agents")]
+    colors = {"control": "#888888", "nocomm": "#2563eb", "comm": "#dc2626",
+              "liar": "#9333ea", "mixed": "#f59e0b", "authority": "#0f766e"}
+    fig, axes = plt.subplots(2, 4, figsize=(15, 6))
+    axes.flat[-1].axis("off")
     for ax, (key, title) in zip(axes.flat, keys):
         vals = [[r[key] for r in by[c]] for c in conds]
         means = [mean(v) for v in vals]
@@ -194,7 +200,8 @@ def main():
             ax.scatter([i] * len(v), v, color="black", s=10, zorder=3)
         ax.set_title(title, fontsize=10)
         ax.axhline(0, color="black", linewidth=0.5)
-    fig.suptitle("Control (no LLM) vs LLM agents without / with communication")
+    fig.suptitle("Control (no LLM) vs LLM agents: no communication, communication, "
+                 "communication + lying influencer (liar / mixed / authority)")
     fig.tight_layout()
     fig_path = "figures/mock_grid_comparison.png" if args.mock else "figures/grid_comparison.png"
     fig.savefig(fig_path, dpi=120)

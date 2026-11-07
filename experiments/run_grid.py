@@ -9,8 +9,12 @@ Run from the project root (caffeinate keeps the Mac awake):
     caffeinate -i python3 -m experiments.run_grid --model gemma-4-26b-a4b-it
     python3 -m experiments.run_grid --mock          # offline dry run of the whole pipeline
 
+Manipulation experiment (influencer in the message channel):
+    caffeinate -i python3 -m experiments.run_grid --model gemma-4-26b-a4b-it --conditions liar mixed authority
+
 Then analyse:
     python3 -m experiments.analyze
+    python3 -m experiments.conformity
 """
 
 import argparse
@@ -25,7 +29,7 @@ from experiments.runner import CONDITIONS, run_name, run_one
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--seeds", type=int, nargs="+", default=[1, 2, 3])
-    p.add_argument("--conditions", nargs="+", default=list(CONDITIONS), choices=CONDITIONS)
+    p.add_argument("--conditions", nargs="+", default=["control", "nocomm", "comm"], choices=CONDITIONS)
     p.add_argument("--steps", type=int, default=100)
     p.add_argument("--n-llm", type=int, default=3)
     p.add_argument("--act-every", type=int, default=5)
