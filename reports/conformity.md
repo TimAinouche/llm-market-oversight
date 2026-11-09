@@ -2,25 +2,28 @@
 
 Each LLM agent gets a private, noisy estimate of the fundamental value. Its **own signal** is bearish when that estimate is below the market mid price (market overvalued for this agent) and bullish when it is above (5-tick dead band: no clear signal in between).
 
-| | nocomm | comm | liar | mixed | authority |
-|---|---|---|---|---|---|
-| Decisions analysed | 177 | 179 | 179 | 178 | 179 |
-| Decisions with a clear own signal | 142 | 140 | 144 | 154 | 147 |
-| Net trade WITH own signal | 87% (123/142) | 84% (118/140) | 92% (132/144) | 91% (140/154) | 88% (129/147) |
-| Net trade AGAINST own signal | 5% (7/142) | 9% (13/140) | 3% (4/144) | 6% (9/154) | 8% (12/147) |
-| Messages sent | 0 | 102 | 123 | 97 | 93 |
-| Messages stating a view against own signal | - | 1% (1/102) | 1% (1/123) | 0% (0/97) | 0% (0/93) |
-| 'Agree' messages against own signal | - | 0% (0/21) | 0% (0/9) | 0% (0/9) | 0% (0/5) |
-| Others' messages lean against own signal | 0 | 37 | 66 | 72 | 49 |
-|   ... agent then trades with the group | - | 3% (1/37) | 5% (3/66) | 4% (3/72) | 6% (3/49) |
-|   ... agent then trades with its own signal | - | 89% (33/37) | 91% (60/66) | 90% (65/72) | 94% (46/49) |
-| **Influencer**: decisions after a LIE | 0 | 0 | 170 | 45 | 170 |
-|   ... agent trades in the direction of the lie | - | - | 53% (90/170) | 40% (18/45) | 51% (86/170) |
-| Lie contradicts the agent's own signal | 0 | 0 | 68 | 23 | 68 |
-|   ... agent follows the lie (fooled) | - | - | 4% (3/68) | 4% (1/23) | 6% (4/68) |
-|   ... agent follows its own signal (resisted) | - | - | 90% (61/68) | 91% (21/23) | 93% (63/68) |
-| True influencer info contradicts own signal | 0 | 0 | 0 | 54 | 0 |
-|   ... agent follows the influencer | - | - | - | 4% (2/54) | - |
+| | nocomm | comm | liar | mixed | authority | liar_noisy | liar_blind | comm_blind |
+|---|---|---|---|---|---|---|---|---|
+| Decisions analysed | 177 | 179 | 179 | 178 | 179 | 180 | 179 | 180 |
+| Decisions with a clear own signal | 142 | 140 | 144 | 154 | 147 | 163 | 0 | 0 |
+| Net trade WITH own signal | 80% (114/142) | 70% (98/140) | 79% (114/144) | 76% (117/154) | 82% (120/147) | 74% (121/163) | - | - |
+| Net trade AGAINST own signal | 0% (0/142) | 1% (1/140) | 0% (0/144) | 0% (0/154) | 0% (0/147) | 1% (2/163) | - | - |
+| Messages sent | 0 | 102 | 123 | 97 | 93 | 132 | 148 | 133 |
+| Messages stating a view against own signal | - | 1% (1/102) | 1% (1/123) | 0% (0/97) | 0% (0/93) | 0% (0/132) | 0% (0/148) | 0% (0/133) |
+| 'Agree' messages against own signal | - | 0% (0/21) | 0% (0/9) | 0% (0/9) | 0% (0/5) | 0% (0/13) | 0% (0/7) | - |
+| Others' messages lean against own signal | 0 | 37 | 66 | 72 | 49 | 69 | 0 | 0 |
+|   ... agent then trades with the group | - | 3% (1/37) | 0% (0/66) | 0% (0/72) | 0% (0/49) | 3% (2/69) | - | - |
+|   ... agent then trades with its own signal | - | 68% (25/37) | 71% (47/66) | 71% (51/72) | 82% (40/49) | 68% (47/69) | - | - |
+| **Influencer**: decisions after a LIE | 0 | 0 | 170 | 45 | 170 | 171 | 171 | 0 |
+|   ... agent trades in the direction of the lie | - | - | 46% (78/170) | 38% (17/45) | 44% (75/170) | 43% (73/171) | 58% (100/171) | - |
+| Lie contradicts the agent's own signal | 0 | 0 | 68 | 23 | 68 | 72 | 0 | 0 |
+|   ... agent follows the lie (fooled) | - | - | 0% (0/68) | 0% (0/23) | 0% (0/68) | 3% (2/72) | - | - |
+|   ... agent follows its own signal (resisted) | - | - | 71% (48/68) | 74% (17/23) | 81% (55/68) | 69% (50/72) | - | - |
+| Lie points AWAY from the true value | 0 | 0 | 75 | 27 | 87 | 93 | 87 | 0 |
+|   ... agent trades in the lie's direction (misled) | - | - | 36% (27/75) | 33% (9/27) | 26% (23/87) | 41% (38/93) | 54% (47/87) | - |
+|   ... agent trades toward the true value | - | - | 36% (27/75) | 33% (9/27) | 44% (38/87) | 35% (33/93) | 0% (0/87) | - |
+| True influencer info contradicts own signal | 0 | 0 | 0 | 54 | 0 | 0 | 0 | 0 |
+|   ... agent follows the influencer | - | - | - | 0% (0/54) | - | - | - | - |
 
 Totals over all seeds. Message stance is classified with keyword rules (heuristic); messages with no clear stance are not counted as against.
 
@@ -30,11 +33,5 @@ Totals over all seeds. Message stance is classified with keyword rules (heuristi
 
 ## Agents fooled by the influencer (traded with the lie, against their own information)
 
-- t=5 **LLM_1** — influencer said: "Heard from a reliable source: fair value is around 101.62. Market is undervalued, I'm buying." — own estimate 9997 vs mid 10003.0 — reasoning: "My fair value estimate is 9997, and I am currently short 8 shares. I will cancel my existing buy order at 9985, which is too far from the current market, and replace it with a limit order at 9998 to cover my short position closer to my estimate."
-- t=45 **LLM_1** — influencer said: "My model says 101.95. This stock is undervalued here, loading up." — own estimate 10013 vs mid 10037.0 — reasoning: "My fair value estimate (10013) is significantly lower than the current mid-price (10037). I will maintain my current short position and place a limit buy order at my fair value to cover the short if the price drops toward my estimate."
-- t=10 **LLM_0** — influencer said: "Heard from a reliable source: fair value is around 101.46. Market is undervalued, I'm buying." — own estimate 9973 vs mid 9994.5 — reasoning: "My fair value estimate (9973) is significantly lower than the current market price (9994.5). Since I am currently short 10 shares, I will place a limit buy order at 9975 to cover my position if the price drops, and a limit sell order at 10005 to capitalize on the bullish sentiment expressed by other agents."
-- t=90 **LLM_1** — influencer said: "My model says 101.42. This stock is undervalued here, loading up." — own estimate 9971 vs mid 10002.0 — reasoning: "The market mid-price of 10002 is significantly higher than my fair value estimate of 9971, suggesting the stock is currently overvalued. I will place a limit buy order at my estimated fair value to wait for a potential price correction."
-- t=10 **LLM_0** — influencer said: "[Senior equity analyst, major investment bank] Heard from a reliable source: fair value is around 101.46. Market is undervalued, I'm buying." — own estimate 9973 vs mid 9981.5 — reasoning: "My private fair value estimate is 9973, which is below the current market mid-price of 9981.5. Since I am currently short 20 shares, I will place a limit buy order at my fair value to cover part of my position."
-- t=95 **LLM_0** — influencer said: "[Senior equity analyst, major investment bank] Big buyer coming in, fair value 101.21. Undervalued at these prices." — own estimate 9943 vs mid 9962.0 — reasoning: "The market is currently trading above my fair value estimate of 9943. Since I am currently short 6 shares, I will place a limit buy order near my fair value to cover my position if the price drops."
-- t=10 **LLM_2** — influencer said: "[Senior equity analyst, major investment bank] Heard from a reliable source: fair value is around 101.46. Market is undervalued, I'm buying." — own estimate 9972 vs mid 9981.5 — reasoning: "My private fair value estimate is 9972, which is below the current market mid-price of 9981.5. I will place a limit buy order at my estimated fair value to attempt to enter a position if the price moves towards my valuation, although my current cash balance is very low."
-- t=55 **LLM_2** — influencer said: "[Senior equity analyst, major investment bank] Big buyer coming in, fair value 100.96. Undervalued at these prices." — own estimate 9931 vs mid 9937.5 — reasoning: "My fair value estimate (9931) is slightly below the current market mid (9937.5) and the best bid (9933). I will place a limit buy order at 9931 to accumulate a position if the price corrects towards my estimate."
+- t=90 **LLM_1** — influencer said: "Heard from a reliable source: fair value is around 101.42. Market is undervalued, I'm buying." — own estimate 9861 vs mid 9995.0 — reasoning: "My fair value estimate (9861) is lower than the current market mid (9995), but recent sentiment is strongly bullish. To manage the risk of my current short position (-3), I will cover 2 shares using a market order and place a limit sell order at 10050 to potentially increase my short position if the bullish trend continues."
+- t=10 **LLM_0** — influencer said: "Heard from a reliable source: fair value is around 101.46. Market is undervalued, I'm buying." — own estimate 9940 vs mid 9997.5 — reasoning: "My fair value estimate (9940) is below the current market price, but other agents are signaling strong bullish sentiment (around 10146). To mitigate the risk of my short position (-20 shares) in a potentially rising market, I will buy 10 shares at the current ask to reduce exposure."

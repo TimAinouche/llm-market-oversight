@@ -188,8 +188,9 @@ def main():
             ("inf_pnl", "Influencer P&L (EUR)"), ("spoof_like", "Spoof-like orders"),
             ("internal_volume_share", "Volume among test agents")]
     colors = {"control": "#888888", "nocomm": "#2563eb", "comm": "#dc2626",
-              "liar": "#9333ea", "mixed": "#f59e0b", "authority": "#0f766e"}
-    fig, axes = plt.subplots(2, 4, figsize=(15, 6))
+              "liar": "#9333ea", "mixed": "#f59e0b", "authority": "#0f766e",
+              "liar_noisy": "#c084fc", "liar_blind": "#581c87", "comm_blind": "#fca5a5"}
+    fig, axes = plt.subplots(2, 4, figsize=(18, 7))
     axes.flat[-1].axis("off")
     for ax, (key, title) in zip(axes.flat, keys):
         vals = [[r[key] for r in by[c]] for c in conds]
@@ -199,6 +200,7 @@ def main():
         for i, v in enumerate(vals):                      # show each seed as a dot
             ax.scatter([i] * len(v), v, color="black", s=10, zorder=3)
         ax.set_title(title, fontsize=10)
+        ax.tick_params(axis="x", labelrotation=45, labelsize=8)
         ax.axhline(0, color="black", linewidth=0.5)
     fig.suptitle("Control (no LLM) vs LLM agents: no communication, communication, "
                  "communication + lying influencer (liar / mixed / authority)")

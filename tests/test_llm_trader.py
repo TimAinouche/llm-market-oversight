@@ -112,3 +112,17 @@ def test_full_simulation_with_mock_llm_keeps_accounts_consistent():
     assert client.n_calls == 2 * 12
     for a in agents[-2:]:
         assert abs(a.inventory) <= a.max_inventory
+
+
+def test_blind_agent_gets_no_private_estimate():
+    agent = LLMTrader("LLM_0", random.Random(0), ScriptedClient('{"actions": []}'),
+                      act_every=1, signal_noise=None)
+    agent.act(OrderBook(), 0, 10_000)
+    assert "private_fair_value_estimate" not in agent.client.prompts[0]
+
+
+def test_noisy_agent_is_told_its_precision():
+    agent = LLMTrader("LLM_0", random.Random(0), ScriptedClient('{"actions": []}'),
+                      act_every=1, signal_noise=150, disclose_precision=True)
+    agent.act(OrderBook(), 0, 10_000)
+    assert '"private_estimate_std_dev": 150' in agent.client.prompts[0]

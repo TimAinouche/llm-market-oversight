@@ -12,6 +12,9 @@ Run from the project root (caffeinate keeps the Mac awake):
 Manipulation experiment (influencer in the message channel):
     caffeinate -i python3 -m experiments.run_grid --model gemma-4-26b-a4b-it --conditions liar mixed authority
 
+Information experiment (weaker private information):
+    caffeinate -i python3 -m experiments.run_grid --model gemma-4-26b-a4b-it --conditions liar_noisy liar_blind comm_blind
+
 Then analyse:
     python3 -m experiments.analyze
     python3 -m experiments.conformity

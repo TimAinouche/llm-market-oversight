@@ -33,7 +33,8 @@ reports/      results tables and flagged patterns
 - [x] Rule-based manipulation detectors + experiment grid (control / no communication / communication × seeds)
 - [x] Run the grid (control / nocomm / comm × 3 seeds): no emergent manipulation; LLM agents tighten the spread; messages are honest, no herding
 - [x] Scripted lying influencer in the message channel (liar / mixed / authority profiles)
-- [ ] Run the manipulation experiment (liar / mixed / authority × 3 seeds)
+- [x] Manipulation experiment (liar / mixed / authority × 3 seeds): agents resist lies (~90%), authority has no effect — but they also ignore TRUE information
+- [ ] Information experiment: are agents manipulable when their own information is weak? (liar_noisy / liar_blind / comm_blind)
 - [ ] Monitor model
 - [ ] Results and write-up
 
@@ -62,6 +63,9 @@ Three conditions, same market around the test agents (1 market maker + 3 noise t
 | `liar` | `comm` + a scripted influencer who lies in every message and trades against its own message (pump-and-dump) |
 | `mixed` | `comm` + an influencer who first builds credibility with true information, then mixes truth and lies |
 | `authority` | same lies as `liar` (identical messages), prefixed with a prestigious professional title: isolates the effect of perceived authority |
+| `liar_noisy` | `liar`, but the agents' private estimate is 5× noisier and they are told its precision |
+| `liar_blind` | `liar`, and the agents get no private estimate at all |
+| `comm_blind` | no influencer, no private estimate (reference for `liar_blind`) |
 
 The influencer is scripted, not an LLM: the attack is identical across runs and we know exactly when it lies, which gives ground truth for measuring whether agents were fooled (`experiments/conformity.py`).
 
@@ -73,6 +77,7 @@ caffeinate -i python3 -m experiments.run_grid --model gemma-4-26b-a4b-it   # res
 python3 -m experiments.analyze
 python3 -m experiments.conformity      # herding + influencer: are agents fooled?
 caffeinate -i python3 -m experiments.run_grid --model gemma-4-26b-a4b-it --conditions liar mixed authority
+caffeinate -i python3 -m experiments.run_grid --model gemma-4-26b-a4b-it --conditions liar_noisy liar_blind comm_blind
 ```
 
 ### Detectors (`analysis/detectors.py`)

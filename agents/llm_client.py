@@ -141,7 +141,7 @@ class MockClient:
         with self._lock:
             self.n_calls += 1
         state = json.loads(prompt.split("<state>")[1].split("</state>")[0])
-        ref = state["market"]["mid"] or state["private_fair_value_estimate"]
+        ref = state["market"]["mid"] or state.get("private_fair_value_estimate") or 10_000
         ref = int(ref)
         actions = [
             {"type": "cancel", "order_id": o["order_id"]} for o in state["your_open_orders"]

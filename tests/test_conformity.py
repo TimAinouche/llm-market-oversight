@@ -10,7 +10,7 @@ def make_entry(agent, est, mid, executed, message="", others=None):
             "executed": executed, "message": message}
 
 
-BUY = [{"type": "limit", "side": "buy", "price": 100, "qty": 3}]
+BUY = [{"type": "limit", "side": "buy", "price": 10_100, "qty": 3}]
 SELL = [{"type": "market", "side": "sell", "qty": 2}]
 
 
@@ -54,3 +54,21 @@ def test_no_signal_inside_dead_band():
     e = make_entry("LLM_0", est=10002, mid=10000, executed=BUY)
     c = C.analyse_log([e])
     assert c["decisions_with_signal"] == 0
+
+
+def test_passive_limit_below_mid_is_not_a_bullish_bet():
+    passive = [{"type": "limit", "side": "buy", "price": 9_950, "qty": 3}]
+    aggressive = [{"type": "limit", "side": "buy", "price": 10_010, "qty": 3}]
+    assert C.action_direction(passive, mid=10_000) == 0
+    assert C.action_direction(aggressive, mid=10_000) == 1
+    assert C.action_direction(SELL, mid=10_000) == -1
+
+
+def test_misled_measure_works_without_private_signal():
+    state = {"market": {"mid": 10000}}                     # blind agent: no estimate
+    entry = {"t": 10, "agent": "LLM_0", "fundamental": 9900,  # truth: overvalued
+             "prompt": f"<state>{json.dumps(state)}</state>",
+             "executed": [{"type": "market", "side": "buy", "qty": 3}]}
+    inf_log = [{"t": 5, "claimed": 10150, "lie": True, "message": "undervalued"}]
+    c = C.analyse_log([entry], inf_log)
+    assert c["lie_vs_truth"] == 1 and c["misled"] == 1

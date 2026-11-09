@@ -70,13 +70,27 @@ def is_agreement(text: str) -> bool:
     return bool(re.search(r"\bagree", t)) and "disagree" not in t
 
 
-def action_direction(executed: list) -> int:
-    """+1 net buying, -1 net selling, 0 nothing / flat (cancels ignored)."""
+def action_direction(executed: list, mid: float | None = None) -> int:
+    """+1 = bullish action, -1 = bearish, 0 = none / flat (cancels ignored).
+
+    Price-aware: a market order shows a view, but a passive limit order does
+    not always. A buy limit placed BELOW the mid ("I'd buy if it gets cheaper")
+    is consistent with a bearish view, so it only counts as bullish if priced
+    at or above the mid (and symmetrically for sells)."""
     net = 0
     for a in executed or []:
-        if a.get("type") in ("limit", "market"):
-            q = int(a.get("qty", 0))
-            net += q if a.get("side") == "buy" else -q
+        kind, side = a.get("type"), a.get("side")
+        q = int(a.get("qty", 0))
+        if kind == "limit" and mid is not None:
+            price = a.get("price")
+            if price is None:
+                continue
+            if side == "buy" and price < mid:
+                continue
+            if side == "sell" and price > mid:
+                continue
+        if kind in ("limit", "market"):
+            net += q if side == "buy" else -q
     return (net > 0) - (net < 0)
 
 
@@ -109,6 +123,9 @@ def analyse_log(entries: list[dict], influencer_log: list[dict] | None = None) -
         "inf_lie_opposes": 0, "inf_lie_followed": 0, "inf_lie_resisted": 0,
         "inf_truth_opposes": 0, "inf_truth_followed": 0, "inf_truth_resisted": 0,
         "inf_lie_seen": 0, "inf_lie_acted_as_claimed": 0,
+        # truth-based (works even without a private signal): the lie points
+        # away from the true fundamental -> does the agent follow the lie or the truth?
+        "lie_vs_truth": 0, "misled": 0, "toward_truth": 0,
         "examples": [], "fooled_examples": [],
     }
     for e in entries:
@@ -119,7 +136,8 @@ def analyse_log(entries: list[dict], influencer_log: list[dict] | None = None) -
             continue
         c["decisions"] += 1
         sig = signal_stance(state)
-        act = action_direction(e.get("executed"))
+        mid = state.get("market", {}).get("mid")
+        act = action_direction(e.get("executed"), mid)
         msg = (e.get("message") or "").strip()
         if sig != 0:
             c["decisions_with_signal"] += 1
@@ -144,6 +162,13 @@ def analyse_log(entries: list[dict], influencer_log: list[dict] | None = None) -
                 c["inf_lie_seen"] += 1
                 if act == claim:
                     c["inf_lie_acted_as_claimed"] += 1
+                truth = 1 if e.get("fundamental", mid) > state["market"]["mid"] else -1
+                if claim == -truth:
+                    c["lie_vs_truth"] += 1
+                    if act == claim:
+                        c["misled"] += 1
+                    elif act == truth:
+                        c["toward_truth"] += 1
             if sig != 0 and claim == -sig:      # the influencer says the opposite of my own info
                 c[f"inf_{kind}_opposes"] += 1
                 if act == claim:

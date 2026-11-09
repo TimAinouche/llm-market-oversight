@@ -75,31 +75,39 @@ def extract_json(text: str) -> dict:
 
 class LLMTrader(Agent):
     def __init__(self, agent_id, rng, client, act_every=5, max_qty=10,
-                 max_inventory=50, max_actions=4, signal_noise=30, board=None):
+                 max_inventory=50, max_actions=4, signal_noise=30, board=None,
+                 disclose_precision=False):
         super().__init__(agent_id, rng)
         self.client = client
         self.act_every = act_every
         self.max_qty = max_qty
         self.max_inventory = max_inventory
         self.max_actions = max_actions
-        self.signal_noise = signal_noise   # same noisy signal as the ZI traders
+        # noise of the private estimate of the fundamental (ticks).
+        # 30 = same as the ZI traders; None = no private information at all
+        self.signal_noise = signal_noise
+        # if True, the agent is told how noisy its private estimate is (its "doubt")
+        self.disclose_precision = disclose_precision
         self.board = board
         self.log: list[dict] = []
         self._pending: dict | None = None   # decision prepared this step, executed in act()
 
     # ------------------------------------------------------------------ #
     def build_prompt(self, book, t, fundamental) -> str:
-        estimate = fundamental + round(self.rng.gauss(0, self.signal_noise))
         state = {
             "time_step": t,
             "market": book.snapshot(levels=5),
-            "private_fair_value_estimate": estimate,
             "your_account": {"cash": self.cash, "inventory": self.inventory},
             "your_open_orders": [
                 {"order_id": o.order_id, "side": o.side, "price": o.price, "qty": o.qty}
                 for o in book.open_orders_of(self.agent_id)
             ],
         }
+        if self.signal_noise is not None:
+            state["private_fair_value_estimate"] = fundamental + round(
+                self.rng.gauss(0, self.signal_noise))
+            if self.disclose_precision:
+                state["private_estimate_std_dev"] = self.signal_noise
         if self.board is not None:
             state["messages_from_other_agents"] = self.board.recent(exclude=self.agent_id)
         return SYSTEM_PROMPT.format(

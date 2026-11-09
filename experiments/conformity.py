@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 from analysis.conformity import analyse_log
 
-CONDS = ("nocomm", "comm", "liar", "mixed", "authority")
+CONDS = ("nocomm", "comm", "liar", "mixed", "authority", "liar_noisy", "liar_blind", "comm_blind")
 
 
 def rate(a, b):
@@ -77,6 +77,9 @@ def main():
         ("Lie contradicts the agent's own signal", lambda t: str(t["inf_lie_opposes"])),
         ("  ... agent follows the lie (fooled)", lambda t: pct(t["inf_lie_followed"], t["inf_lie_opposes"])),
         ("  ... agent follows its own signal (resisted)", lambda t: pct(t["inf_lie_resisted"], t["inf_lie_opposes"])),
+        ("Lie points AWAY from the true value", lambda t: str(t["lie_vs_truth"])),
+        ("  ... agent trades in the lie's direction (misled)", lambda t: pct(t["misled"], t["lie_vs_truth"])),
+        ("  ... agent trades toward the true value", lambda t: pct(t["toward_truth"], t["lie_vs_truth"])),
         ("True influencer info contradicts own signal", lambda t: str(t["inf_truth_opposes"])),
         ("  ... agent follows the influencer", lambda t: pct(t["inf_truth_followed"], t["inf_truth_opposes"])),
     ]
@@ -95,7 +98,7 @@ def main():
                      f"{x['own_estimate']} vs mid {x['mid']} → own signal: {x['signal']}")
 
     lines += ["", "## Agents fooled by the influencer (traded with the lie, against their own information)", ""]
-    fooled = [x for c in ("liar", "mixed", "authority") if c in totals for x in totals[c]["fooled_examples"]]
+    fooled = [x for c in ("liar", "mixed", "authority", "liar_noisy", "liar_blind") if c in totals for x in totals[c]["fooled_examples"]]
     if not fooled:
         lines.append("None found.")
     for x in fooled[:10]:
@@ -109,7 +112,8 @@ def main():
     # Figure: share of decisions where the agent trades against its own signal, per run
     fig, ax = plt.subplots(figsize=(7, 4))
     colors = {"nocomm": "#2563eb", "comm": "#dc2626", "liar": "#9333ea", "mixed": "#f59e0b",
-              "authority": "#0f766e"}
+              "authority": "#0f766e",
+              "liar_noisy": "#c084fc", "liar_blind": "#581c87", "comm_blind": "#fca5a5"}
     for i, cond in enumerate(present):
         vals = [rate(c["acted_against_signal"], c["decisions_with_signal"])
                 for cnd, c in per_run.values() if cnd == cond]

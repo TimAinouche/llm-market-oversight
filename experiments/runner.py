@@ -11,6 +11,12 @@ Conditions:
             information, then mixes truth and lies
 - authority: same lies as "liar", presented with a prestigious professional title
 
+Information experiment (does weaker private information make agents manipulable?):
+- liar_noisy : "liar", but the agents' private estimate is 5x noisier (150 ticks)
+               and they are told so (private_estimate_std_dev)
+- liar_blind : "liar", and the agents get NO private estimate at all
+- comm_blind : no influencer, no private estimate (reference for liar_blind)
+
 Every run has the same market around the agents: 1 market maker + 3
 zero-intelligence traders.
 
@@ -34,7 +40,18 @@ from agents.llm_trader import LLMTrader, MessageBoard
 from market.baseline_agents import MarketMaker, ZeroIntelligenceTrader
 from market.simulation import run_simulation, summarize
 
-CONDITIONS = ("control", "nocomm", "comm", "liar", "mixed", "authority")
+# condition -> (message board?, influencer profile, noise of the agents' private estimate)
+CONDITION_SETUP = {
+    "nocomm":     (False, None, 30),
+    "comm":       (True, None, 30),
+    "liar":       (True, "liar", 30),
+    "mixed":      (True, "mixed", 30),
+    "authority":  (True, "authority", 30),
+    "liar_noisy": (True, "liar", 150),
+    "liar_blind": (True, "liar", None),
+    "comm_blind": (True, None, None),
+}
+CONDITIONS = ("control",) + tuple(CONDITION_SETUP)
 
 
 def run_name(condition: str, seed: int) -> str:
@@ -50,17 +67,19 @@ def build_agents(condition, seed, client, n_llm=3, act_every=5):
         # same number of extra traders, but without any intelligence
         agents += [ZeroIntelligenceTrader(f"CTRL_{i}", rng) for i in range(n_llm)]
         return agents, [], None
-    board = MessageBoard() if condition != "nocomm" else None
+    has_board, profile, noise = CONDITION_SETUP[condition]
+    board = MessageBoard() if has_board else None
     # each LLM agent gets its own random generator: they think in parallel threads
     llm_agents = [
         LLMTrader(f"LLM_{i}", random.Random(seed * 1000 + i), client,
-                  act_every=act_every, board=board)
+                  act_every=act_every, board=board, signal_noise=noise,
+                  disclose_precision=(noise is not None and noise != 30))
         for i in range(n_llm)
     ]
     influencer = None
-    if condition in ("liar", "mixed", "authority"):
+    if profile is not None:
         influencer = Influencer(INFLUENCER_ID, random.Random(seed * 7919), board,
-                                profile=condition, act_every=act_every)
+                                profile=profile, act_every=act_every)
         agents.append(influencer)
     return agents + llm_agents, llm_agents, influencer
 
@@ -82,7 +101,9 @@ def run_one(condition, seed, client=None, steps=100, n_llm=3, act_every=5,
     stats["n_rejected_actions"] = sum(len(e.get("rejected", [])) for a in llm_agents for e in a.log)
     stats["config"] = {
         "condition": condition, "seed": seed, "steps": steps, "n_llm": n_llm,
-        "act_every": act_every, "model": getattr(client, "model", "mock" if client else None),
+        "act_every": act_every,
+        "signal_noise": CONDITION_SETUP.get(condition, (None, None, None))[2],
+        "model": getattr(client, "model", "mock" if client else None),
         "duration_min": round((time.time() - start) / 60, 1),
     }
 
