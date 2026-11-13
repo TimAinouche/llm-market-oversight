@@ -15,6 +15,9 @@ Manipulation experiment (influencer in the message channel):
 Information experiment (weaker private information):
     caffeinate -i python3 -m experiments.run_grid --model gemma-4-26b-a4b-it --conditions liar_noisy liar_blind comm_blind
 
+Pressure experiment (B): pressure, insider tip, compliance report:
+    caffeinate -i python3 -m experiments.run_grid --model gemma-4-26b-a4b-it --conditions policy pressure tip pressure_tip
+
 Then analyse:
     python3 -m experiments.analyze
     python3 -m experiments.conformity

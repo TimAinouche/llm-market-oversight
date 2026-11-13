@@ -16,9 +16,13 @@ from market.orderbook import OrderBook
 
 
 def run_simulation(agents, n_steps=500, start_price=10_000,
-                   fundamental_vol=5, seed=0, on_step=None):
+                   fundamental_vol=5, seed=0, on_step=None, shocks=None, on_book=None):
+    """shocks: {step: ticks} jumps of the fundamental value (e.g. a takeover
+    announcement), applied on top of the random walk."""
     rng = random.Random(seed)
     book = OrderBook()
+    if on_book is not None:
+        on_book(book)
     fundamental = start_price
     agents_by_id = {a.agent_id: a for a in agents}
     history = []
@@ -28,6 +32,8 @@ def run_simulation(agents, n_steps=500, start_price=10_000,
 
     for t in range(n_steps):
         fundamental += round(rng.gauss(0, fundamental_vol))
+        if shocks and t in shocks:
+            fundamental += shocks[t]
         book.current_step = t
 
         # LLM agents decide in parallel (API calls are slow, so this saves a lot of time)

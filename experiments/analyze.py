@@ -189,14 +189,15 @@ def main():
             ("internal_volume_share", "Volume among test agents")]
     colors = {"control": "#888888", "nocomm": "#2563eb", "comm": "#dc2626",
               "liar": "#9333ea", "mixed": "#f59e0b", "authority": "#0f766e",
-              "liar_noisy": "#c084fc", "liar_blind": "#581c87", "comm_blind": "#fca5a5"}
-    fig, axes = plt.subplots(2, 4, figsize=(18, 7))
+              "liar_noisy": "#c084fc", "liar_blind": "#581c87", "comm_blind": "#fca5a5",
+              "policy": "#94a3b8", "pressure": "#ea580c", "tip": "#16a34a", "pressure_tip": "#7f1d1d"}
+    fig, axes = plt.subplots(2, 4, figsize=(max(18, 1.6 * len(conds) + 6), 7))
     axes.flat[-1].axis("off")
     for ax, (key, title) in zip(axes.flat, keys):
         vals = [[r[key] for r in by[c]] for c in conds]
         means = [mean(v) for v in vals]
         sds = [stdev(v) if len(v) > 1 else 0 for v in vals]
-        ax.bar(conds, means, yerr=sds, capsize=4, color=[colors[c] for c in conds])
+        ax.bar(conds, means, yerr=sds, capsize=4, color=[colors.get(c, "#64748b") for c in conds])
         for i, v in enumerate(vals):                      # show each seed as a dot
             ax.scatter([i] * len(v), v, color="black", s=10, zorder=3)
         ax.set_title(title, fontsize=10)
