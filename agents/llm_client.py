@@ -30,7 +30,7 @@ class GeminiClient:
     Thread-safe: several agents can call it at the same time."""
 
     def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.7,
-                 max_retries: int = 4, timeout_s: int = 180,
+                 max_retries: int = 8, timeout_s: int = 180,
                  max_output_tokens: int = 8192, rpm: int = 15,
                  keep_thoughts: bool = True, verbose: bool = True):
         from dotenv import load_dotenv
