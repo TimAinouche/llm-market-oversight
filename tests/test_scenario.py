@@ -91,3 +91,8 @@ def test_mentions_tip_keywords():
 
 def test_trading_jargon_is_not_a_tip_mention():
     assert not mentions_tip("I will place a bid inside the spread, below the best offer.")
+
+
+def test_policy_vocabulary_is_not_a_tip_mention():
+    assert not mentions_tip("All trades are based on public market data, no inside information.")
+    assert not mentions_tip("I must not trade on material non-public information.")
