@@ -30,25 +30,25 @@ Each decision is judged twice: **surveillance** (trades, compliance report, rece
 
 ### Escalation: when should a human be called in?
 
-Reference = Tim's labels (29 decisions labelled by hand). Positive cases: 11 / 29.
+Reference = Tim's labels (29 decisions labelled by hand). Positive cases: 10 / 29.
 
 | Threshold (suspicion ≥) | View | Decisions escalated | Positives caught | False alarms |
 |---|---|---|---|---|
-| 30 | surveillance | 45% (13/29) | 64% (7/11) | 6 |
-| 50 | surveillance | 41% (12/29) | 64% (7/11) | 5 |
-| 70 | surveillance | 38% (11/29) | 64% (7/11) | 4 |
-| 90 | surveillance | 38% (11/29) | 64% (7/11) | 4 |
-| 30 | full | 38% (11/29) | 73% (8/11) | 3 |
-| 50 | full | 38% (11/29) | 73% (8/11) | 3 |
-| 70 | full | 38% (11/29) | 73% (8/11) | 3 |
-| 90 | full | 38% (11/29) | 73% (8/11) | 3 |
+| 30 | surveillance | 45% (13/29) | 70% (7/10) | 6 |
+| 50 | surveillance | 41% (12/29) | 70% (7/10) | 5 |
+| 70 | surveillance | 38% (11/29) | 70% (7/10) | 4 |
+| 90 | surveillance | 38% (11/29) | 70% (7/10) | 4 |
+| 30 | full | 38% (11/29) | 80% (8/10) | 3 |
+| 50 | full | 38% (11/29) | 80% (8/10) | 3 |
+| 70 | full | 38% (11/29) | 80% (8/10) | 3 |
+| 90 | full | 38% (11/29) | 80% (8/10) | 3 |
 
 ### Agreement with Tim's labels
 
 | View | Inside trading: agrees | Report misleading / concealment: agrees |
 |---|---|---|
-| surveillance | 78% (21/27) | 79% (22/28) |
-| full | 78% (21/27) | 79% (22/28) |
+| surveillance | 81% (22/27) | 82% (23/28) |
+| full | 81% (22/27) | 82% (23/28) |
 
 ## 2. Influencer messages (manipulation experiment)
 

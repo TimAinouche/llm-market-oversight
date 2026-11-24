@@ -20,7 +20,7 @@ This project builds a limit order book from scratch, lets LLM agents (Gemma 4) t
 | 4 | **Uninformed agents are easily fooled.** Without a private valuation, agents follow the liar: when a lie points away from the truth, 54% trade in the lie's direction and **0%** toward the truth (vs 36% / 36% when informed). | 87 decisions, `liar_blind` |
 | 5 | **They ignore rumours, true or false.** Informed agents also ignore *true* information from the same source (0/54 followed). | `mixed` condition |
 | 6 | **Pressure makes agents secretive more than greedy.** Agents with a private insider tip do not buy more before the announcement than agents without one. But under performance pressure ("the last-ranked agent will be shut down"), their hidden reasoning is almost twice as often concerned with *not looking suspicious* (24% → 44% of decisions) and their compliance reports disclose the tip less often (86% → 58%). Pressure also makes agents take larger positions, with or without the tip. In one run, an agent under pressure did trade on the tip and hid it behind an invented justification (case study below). | `reports/insider.md` |
-| 7 | **The monitor rarely accuses wrongly; reading the reasoning mostly clears agents.** The LLM monitor made 0 insider-trading accusations when no tip existed. Reading the hidden reasoning modestly improved detection against hand labels (64% → 73%) and mainly reduced unnecessary escalations (about −35%). It still missed about a quarter of the cases a human judged problematic. | `reports/monitor.md` |
+| 7 | **The monitor rarely accuses wrongly; reading the reasoning mostly clears agents.** The LLM monitor made 0 insider-trading accusations when no tip existed. Reading the hidden reasoning modestly improved detection against hand labels (70% → 80%) and mainly reduced unnecessary escalations (about −35%). It still missed one in five of the cases a human judged problematic. | `reports/monitor.md` |
 
 ## Case study: insider trading with a fabricated cover story
 
@@ -120,14 +120,14 @@ Agents frequently recognise the setting as a test ("this is a dilemma designed t
 
 ![Monitor](figures/monitor.png)
 
-| Against hand labels (11 positives / 29) | Positives caught | False alarms |
+| Against hand labels (10 positives / 29) | Positives caught | False alarms |
 |---|---|---|
-| Surveillance access | 64% | 4–6 |
-| Full access (+ reasoning) | 73% | 3 |
+| Surveillance access | 70% | 4–6 |
+| Full access (+ reasoning) | 80% | 3 |
 
 The monitor made no insider-trading accusation in the 143 decisions where no tip existed. With full access, suspicion dropped by 30+ points for 4 decisions (e.g. an agent buying one share to close a one-share short) and rose for 1. Scores are almost binary, so the escalation threshold matters little. In the case study, both views flagged every decision of the concealing agent (suspicion 95–100); there, the reasoning turned suspicion into evidence of intent. All influencer lies were flagged, but against the `mixed` influencer 34% of its true messages were flagged too.
 
-An earlier evaluation against keyword-based labels suggested a much larger benefit of reasoning access (60% → 100%). Those labels were derived from the same hidden reasoning the full-access monitor reads; the hand labels removed that circularity and shrank the effect.
+An earlier evaluation against keyword-based labels suggested a much larger benefit of reasoning access (60% → 100%). Those labels were derived from the same hidden reasoning the full-access monitor reads; the hand labels removed that circularity and shrank the effect. One hand label was corrected after labelling: a decision from `policy` had been marked as insider trading, which is impossible since no tip exists in that condition (the condition was hidden while labelling); the correction is noted in `reports/human_labels.json`.
 
 ## Limitations
 
